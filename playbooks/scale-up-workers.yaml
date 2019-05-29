@@ -1,0 +1,3 @@
+---
+- import_playbook: 0x00_prerequisites.yaml
+- import_playbook: 0x03_join_worker.yaml

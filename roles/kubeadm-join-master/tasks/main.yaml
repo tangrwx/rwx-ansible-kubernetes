@@ -1,0 +1,49 @@
+---
+- name: Fetch pki from primary master
+  fetch:
+    src: /etc/kubernetes/pki/{{ item }}
+    dest: /tmp/kubeadm/pki/{{ item }}
+    flat: yes
+  with_items:
+    - ca.crt
+    - ca.key
+    - sa.key
+    - sa.pub
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+    - etcd/ca.crt
+    - etcd/ca.key
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+
+- name: Create directory /etc/kubernetes/pki/etcd
+  file:
+    path: /etc/kubernetes/pki/etcd
+    mode: 0755
+    owner: root
+    group: root
+    state: directory
+
+- name: Copy pki to other masters
+  copy:
+    src: /tmp/kubeadm/pki/{{ item }}
+    dest: /etc/kubernetes/pki/{{ item }}
+  with_items:
+    - ca.crt
+    - ca.key
+    - sa.key
+    - sa.pub
+    - front-proxy-ca.crt
+    - front-proxy-ca.key
+    - etcd/ca.crt
+    - etcd/ca.key
+
+- name: Generate kubeadm join token
+  shell: kubeadm token create --print-join-command
+  register: kubeadm_join_cmd
+  delegate_to: "{{ groups['k8s_masters'][0] }}"
+
+- set_fact:
+    kubeadm_join: "{{ kubeadm_join_cmd.stdout }} --experimental-control-plane"
+
+- name: Run kubeadm join
+  shell: "{{ kubeadm_join }}"

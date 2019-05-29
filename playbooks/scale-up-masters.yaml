@@ -1,0 +1,4 @@
+---
+- import_playbook: 0x00_prerequisites.yaml
+- import_playbook: 0x02_join_master.yaml
+  when: groups['k8s_masters'] | length > 1

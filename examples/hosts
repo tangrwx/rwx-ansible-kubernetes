@@ -1,0 +1,9 @@
+[k8s_masters]
+
+
+[k8s_workers]
+
+
+[k8s_nodes:children]
+k8s_masters
+k8s_workers

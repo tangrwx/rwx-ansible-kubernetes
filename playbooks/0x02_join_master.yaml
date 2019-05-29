@@ -1,0 +1,63 @@
+---
+# Get information from primary master, for instance, pki files and join token
+- hosts: k8s_masters[0]
+  become: yes
+  tasks:
+    - name: Fetch pki from primary master
+      fetch:
+        src: /etc/kubernetes/pki/{{ item }}
+        dest: /tmp/kubeadm/pki/{{ item }}
+        flat: yes
+      with_items:
+        - ca.crt
+        - ca.key
+        - sa.key
+        - sa.pub
+        - front-proxy-ca.crt
+        - front-proxy-ca.key
+        - etcd/ca.crt
+        - etcd/ca.key
+
+    - name: Generate kubeadm join command
+      shell: kubeadm token create --print-join-command
+      register: kubeadm_join_cmd
+
+# Upload pki files to new masters
+- hosts: k8s_masters[1:]
+  become: yes
+  tasks:
+    - name: Create directory /etc/kubernetes/pki/etcd
+      file:
+        path: /etc/kubernetes/pki/etcd
+        mode: 0755
+        owner: root
+        group: root
+        state: directory
+
+    - name: Copy pki to new masters
+      copy:
+        src: /tmp/kubeadm/pki/{{ item }}
+        dest: /etc/kubernetes/pki/{{ item }}
+      with_items:
+        - ca.crt
+        - ca.key
+        - sa.key
+        - sa.pub
+        - front-proxy-ca.crt
+        - front-proxy-ca.key
+        - etcd/ca.crt
+        - etcd/ca.key
+
+# Run kubeadm join
+- hosts: k8s_masters[1:]
+  become: yes
+  serial: 1
+  tasks:
+    - name: Run kubeadm join
+      shell: "{{ hostvars[groups['k8s_masters'][0]].kubeadm_join_cmd.stdout }} --experimental-control-plane"
+
+# Configure kubectl
+- hosts: k8s_masters[1:]
+  become: yes
+  roles:
+    - ../roles/config-kubectl

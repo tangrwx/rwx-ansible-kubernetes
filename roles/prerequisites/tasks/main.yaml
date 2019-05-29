@@ -1,0 +1,60 @@
+---
+- name: Remove swap from /etc/fstab
+  mount:
+    name: swap
+    fstype: swap
+    state: absent
+
+- name: Turn swap off
+  shell: swapoff -a
+
+- name: Update sysctl configuration
+  copy:
+    src: sysctl-kubernetes.conf
+    dest: /etc/sysctl.d/99-kubernetes.conf
+
+- name: Run sysctl --system
+  shell: sysctl --system
+
+- name: Install packages to allow apt to use HTTPS
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+
+- name: Add GPG keys
+  apt_key:
+    url: "{{ item }}"
+  with_items:
+    - "https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg"
+    - "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+
+- name: Add repositories
+  apt_repository:
+    repo: "{{ item }}"
+  with_items:
+    - "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_distribution_release }} stable"
+    - "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+
+- name: Install required packages
+  apt:
+    name:
+      - "docker-ce={{ docker_version }}*"
+      - "kubeadm={{ kubeadm_version }}*"
+      - "kubelet={{ kubelet_version }}*"
+      - "kubectl={{ kubectl_version }}*"
+    update_cache: yes
+
+- name: Setup Docker daemon
+  copy:
+    src: daemon.json
+    dest: /etc/docker/daemon.json
+
+- name: Restart Docker
+  systemd:
+    name: docker
+    state: restarted
+    enabled: yes
+    daemon_reload: yes

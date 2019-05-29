@@ -1,0 +1,12 @@
+---
+- name: Create directory $HOME/.kube
+  file:
+    path: $HOME/.kube
+    mode: 0755
+    state: directory
+
+- name: Copy /etc/kubernetes/admin.conf to $HOME/.kube
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: $HOME/.kube/config
+    remote_src: yes
